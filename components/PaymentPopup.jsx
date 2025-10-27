@@ -10,6 +10,7 @@ import {
 import { FaGooglePay, FaAmazonPay } from "react-icons/fa";
 import { SiPhonepe, SiPaytm } from "react-icons/si";
 
+// UPI apps configuration
 const upiApps = [
   {
     name: "G Pay",
@@ -27,29 +28,59 @@ const upiApps = [
     id: "paytm",
   },
   {
-    name: "Amazon",
+    name: "Amazon Pay",
     icon: <FaAmazonPay className="text-xl text-orange-500" />,
     id: "amazon",
   },
 ];
 
+// Deep link schemes for different apps
+const upiBaseLinks = {
+  gpay: "tez://upi/pay",
+  phonepe: "phonepe://upi/pay",
+  paytm: "paytmmp://pay",
+  amazon: "amazonpay://pay",
+  default: "upi://pay",
+};
+
+// Detect mobile device
 const isMobileDevice = () => /Mobi|Android/i.test(navigator.userAgent);
 
 const PaymentPopup = ({ amount, note, onClose }) => {
   const upiId = import.meta.env.VITE_UPI_ID;
-  const upiUrl = `upi://pay?pa=${upiId}&pn=Servano&am=${amount}&tn=${note}&cu=INR`;
-  const isMobile = isMobileDevice();
+  const upiName = import.meta.env.VITE_UPI_NAME;
 
+  const encodedUPI = encodeURIComponent(upiId);
+  const encodedName = encodeURIComponent(upiName);
+  const encodedAmount = encodeURIComponent(amount);
+  const encodedNote = encodeURIComponent(note);
+
+  const genericUpiUrl = `upi://pay?pa=${encodedUPI}&pn=${encodedName}&am=${encodedAmount}&tn=${encodedNote}&cu=INR`;
+
+  const isMobile = isMobileDevice();
   const [showGenericUpi, setShowGenericUpi] = useState(false);
   const [showQR, setShowQR] = useState(true);
 
-  const handleUPIClick = () => {
-    if (isMobile) window.location.href = upiUrl;
+  // Handle app-specific UPI open
+  const handleUPIClick = (appId = "default") => {
+    if (!isMobile) return;
+
+    const baseUrl = upiBaseLinks[appId] || upiBaseLinks.default;
+    const upiUrl = `${baseUrl}?pa=${encodedUPI}&pn=${encodedName}&am=${encodedAmount}&tn=${encodedNote}&cu=INR`;
+
+    // Try to open specific UPI app
+    window.location.href = upiUrl;
+
+    // Fallback to generic UPI if app not installed
+    setTimeout(() => {
+      window.location.href = genericUpiUrl;
+    }, 1500);
   };
 
+  // Copy UPI ID
   const handleCopy = () => {
     navigator.clipboard.writeText(upiId);
-    alert("UPI ID copied!");
+    alert("UPI ID copied to clipboard!");
   };
 
   return (
@@ -66,8 +97,9 @@ const PaymentPopup = ({ amount, note, onClose }) => {
         exit={{ scale: 0.9, opacity: 0 }}
         transition={{ type: "spring", stiffness: 400, damping: 35 }}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white/80 backdrop-blur-md border border-white/50 p-6 rounded-2xl flex flex-col items-center space-y-5 max-w-sm w-full shadow-2xl text-gray-900"
+        className="bg-white/80 backdrop-blur-md border border-white/50 p-6 rounded-2xl flex flex-col items-center space-y-5 max-w-sm w-full shadow-2xl text-gray-900 relative"
       >
+        {/* Close Button */}
         <button
           onClick={onClose}
           className="absolute top-3 right-3 p-2 rounded-full text-gray-600 hover:bg-white/20 transition"
@@ -75,6 +107,7 @@ const PaymentPopup = ({ amount, note, onClose }) => {
           <AiOutlineClose className="text-lg" />
         </button>
 
+        {/* Title */}
         <h2 className="text-2xl font-bold uppercase tracking-wider">
           Pay with UPI
         </h2>
@@ -82,6 +115,7 @@ const PaymentPopup = ({ amount, note, onClose }) => {
           ₹ {parseFloat(amount).toFixed(2)}
         </div>
 
+        {/* --- MOBILE VIEW --- */}
         {isMobile ? (
           <div className="w-full space-y-4">
             {!showGenericUpi ? (
@@ -91,20 +125,21 @@ const PaymentPopup = ({ amount, note, onClose }) => {
                 </p>
                 <div className="flex justify-center space-x-3">
                   {upiApps.map((app) => (
-                    <motion.a
+                    <motion.button
                       key={app.id}
                       whileTap={{ scale: 0.9 }}
                       whileHover={{ scale: 1.05 }}
-                      href={upiUrl}
+                      onClick={() => handleUPIClick(app.id)}
                       className="flex flex-col items-center p-3 bg-white/70 backdrop-blur-sm border border-white/30 w-20 h-20 rounded-xl shadow-lg justify-center transition"
                     >
                       {app.icon}
                       <span className="mt-1 font-semibold text-xs">
                         {app.name}
                       </span>
-                    </motion.a>
+                    </motion.button>
                   ))}
                 </div>
+
                 <button
                   onClick={() => setShowGenericUpi(true)}
                   className="w-full flex items-center justify-center space-x-2 py-2 text-sm text-gray-600 hover:text-gray-900 transition"
@@ -116,11 +151,11 @@ const PaymentPopup = ({ amount, note, onClose }) => {
             ) : (
               <div className="flex flex-col items-center">
                 <p className="text-gray-600 text-sm text-center mb-3">
-                  Tap to open and choose *any* installed UPI app:
+                  Tap to open and choose <b>any</b> installed UPI app:
                 </p>
                 <motion.button
                   whileTap={{ scale: 0.95 }}
-                  onClick={handleUPIClick}
+                  onClick={() => handleUPIClick("default")}
                   className="w-full py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-500 transition"
                 >
                   Open UPI Link
@@ -135,6 +170,7 @@ const PaymentPopup = ({ amount, note, onClose }) => {
             )}
           </div>
         ) : (
+          /* --- DESKTOP VIEW --- */
           <div className="w-full space-y-4">
             <div className="flex justify-center space-x-3 rounded-xl bg-white/70 backdrop-blur-md p-2">
               <button
@@ -164,10 +200,10 @@ const PaymentPopup = ({ amount, note, onClose }) => {
             {showQR ? (
               <div className="flex flex-col items-center p-4 bg-white/80 backdrop-blur-md rounded-xl">
                 <p className="mb-3 text-gray-800 text-sm font-medium">
-                  Scan this code
+                  Scan this QR code
                 </p>
                 <QRCodeCanvas
-                  value={upiUrl}
+                  value={genericUpiUrl}
                   size={180}
                   fgColor="#000000"
                   level="H"
@@ -197,6 +233,7 @@ const PaymentPopup = ({ amount, note, onClose }) => {
           </div>
         )}
 
+        {/* Cancel Button */}
         <button
           onClick={onClose}
           className="mt-2 w-full py-2 bg-white/60 text-gray-700 font-semibold rounded-lg hover:bg-white/80 transition"
