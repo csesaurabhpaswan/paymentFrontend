@@ -8,10 +8,9 @@ import NotFound from "../pages/NotFound";
 function App() {
   return (
     <Router>
-      <Routes>
-        
-        <Route path="/pay" element={<Pay />} />
-        <Route path="/pay/:id" element={<Pay />} />
+      <Routes>  
+        <Route path="/" element={<Pay />} />
+        <Route path="/:id" element={<Pay />} />
         <Route path="/pending" element={<Pending />} />
         <Route path="/success" element={<Success />} />
         <Route path="/fail" element={<Fail />} />
